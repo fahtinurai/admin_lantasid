@@ -1,63 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TrainingForm from "../components/TrainingForm";
 import TrainingTable from "../components/TrainingTable";
 import AdminLayout from "../layouts/AdminLayout";
 
 export default function PelatihanPage() {
-  const initialData = [
-    {
-      id: 1,
-      title: "Desain Grafis Profesional",
-      description: "Pelajari desain grafis untuk industri kreatif",
-      wilayah: "Bandung",
-      durasi: "8 minggu",
-      level: "Pemula-Menengah",
-      skills: "Adobe Photoshop, Branding, Typography",
-      video: "",
-    },
-    {
-      id: 2,
-      title: "Manajemen Media Sosial",
-      description: "Strategi pemasaran digital untuk UMKM",
-      wilayah: "Bogor & Depok",
-      durasi: "6 minggu",
-      level: "Pemula",
-      skills: "Content Strategy, Copywriting, Analytics",
-      video: "",
-    },
-    {
-      id: 3,
-      title: "Fullstack Web Development",
-      description: "Bangun aplikasi web modern dari frontend hingga backend",
-      wilayah: "Jakarta",
-      durasi: "12 minggu",
-      level: "Menengah",
-      skills: "HTML, CSS, JavaScript, React, Node.js, MongoDB",
-      video: "",
-    },
-    {
-      id: 4,
-      title: "Data Analyst",
-      description: "Analisis data untuk mendukung pengambilan keputusan bisnis",
-      wilayah: "Surabaya",
-      durasi: "10 minggu",
-      level: "Menengah",
-      skills: "Excel, SQL, Python, Data Visualization",
-      video: "",
-    },
-    {
-      id: 5,
-      title: "Public Speaking & Presentasi",
-      description: "Tingkatkan kemampuan komunikasi dan presentasi profesional",
-      wilayah: "Yogyakarta",
-      durasi: "4 minggu",
-      level: "Pemula",
-      skills: "Storytelling, Body Language, Voice Control",
-      video: "",
-    },
-  ];
+  const [trainings, setTrainings] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [trainings, setTrainings] = useState(initialData);
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("http://localhost:5000/api/v1/courses");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.json();
+
+        // The example response shows `data` is a single object. Normalize to array.
+        let items = [];
+        if (Array.isArray(body.data)) items = body.data;
+        else if (body && body.data) items = [body.data];
+
+        // Map backend fields to the local UI shape used in the table/form
+        const mapped = items.map((it) => ({
+          id: it._id || it.id || Date.now().toString(),
+          title: it.title || "",
+          description: it.description || "",
+          wilayah: it.wilayah || it.wilayah || "",
+          durasi: it.durasi || "",
+          level: it.level || "",
+          skills: it.skills || "",
+          video: it.videoUrl || it.video || "",
+        }));
+
+        setTrainings(mapped);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "Failed to load trainings");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
   const [form, setForm] = useState({
     id: null,
     title: "",
@@ -79,21 +65,131 @@ export default function PelatihanPage() {
     }
 
     if (form.id) {
-      setTrainings((prev) =>
-        prev.map((t) => (t.id === form.id ? { ...form } : t))
-      );
-    } else {
-      setTrainings((prev) => [{ ...form, id: Date.now() }, ...prev]);
+      (async () => {
+        try {
+          const payload = {
+            title: form.title,
+            description: form.description,
+            category: "Pelatihan",
+            wilayah: form.wilayah,
+            durasi: form.durasi,
+            level: form.level,
+            skills: form.skills,
+            videoUrl: form.video,
+          };
+
+          const res = await fetch(`http://localhost:5000/api/v1/courses/${form.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text}`);
+          }
+
+          const body = await res.json();
+          const it = body?.data;
+          if (!it) throw new Error("Invalid response from server");
+
+          const mapped = {
+            id: it._id || it.id || form.id,
+            title: it.title || form.title,
+            description: it.description || form.description,
+            wilayah: it.wilayah || form.wilayah,
+            durasi: it.durasi || form.durasi,
+            level: it.level || form.level,
+            skills: it.skills || form.skills,
+            video: it.videoUrl || form.video,
+          };
+
+          setTrainings((prev) => prev.map((t) => (t.id === form.id ? mapped : t)));
+          handleReset();
+          alert("Pelatihan berhasil diupdate");
+        } catch (err) {
+          console.error(err);
+          alert("Gagal mengupdate pelatihan: " + (err.message || err));
+        }
+      })();
+      return;
     }
-    handleReset();
+
+    (async () => {
+      try {
+        const payload = {
+          title: form.title,
+          description: form.description,
+          category: "Pelatihan",
+          wilayah: form.wilayah,
+          durasi: form.durasi,
+          level: form.level,
+          skills: form.skills,
+          videoUrl: form.video,
+        };
+
+        const res = await fetch("http://localhost:5000/api/v1/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        }
+
+        const body = await res.json();
+        const it = body?.data;
+        if (!it) throw new Error("Invalid response from server");
+
+        const mapped = {
+          id: it._id || it.id || Date.now().toString(),
+          title: it.title || form.title,
+          description: it.description || form.description,
+          wilayah: it.wilayah || form.wilayah,
+          durasi: it.durasi || form.durasi,
+          level: it.level || form.level,
+          skills: it.skills || form.skills,
+          video: it.videoUrl || form.video,
+        };
+
+        setTrainings((prev) => [mapped, ...prev]);
+        handleReset();
+        alert("Pelatihan berhasil dibuat");
+      } catch (err) {
+        console.error(err);
+        alert("Gagal membuat pelatihan: " + (err.message || err));
+      }
+    })();
   };
 
   const handleEdit = (item) => setForm(item);
 
   const handleDelete = (id) => {
     if (!confirm("Hapus pelatihan ini?")) return;
-    setTrainings((prev) => prev.filter((t) => t.id !== id));
-    if (form.id === id) handleReset();
+
+    (async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/v1/courses/${id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        }
+
+        const body = await res.json();
+        if (!body.success) throw new Error(body.message || "Gagal menghapus");
+
+        setTrainings((prev) => prev.filter((t) => t.id !== id));
+        if (form.id === id) handleReset();
+        alert("Pelatihan berhasil dihapus");
+      } catch (err) {
+        console.error(err);
+        alert("Gagal menghapus pelatihan: " + (err.message || err));
+      }
+    })();
   };
 
   const handleReset = () =>
@@ -114,7 +210,12 @@ export default function PelatihanPage() {
         <h1 className="text-2xl font-semibold text-gray-800 text-center">
           Kelola Pelatihan
         </h1>
-
+        {loading && (
+          <div className="text-center text-sm text-gray-600">Memuat data...</div>
+        )}
+        {error && (
+          <div className="text-center text-sm text-red-600">Error: {error}</div>
+        )}
         <div className="bg-white shadow rounded-xl p-6 max-w-3xl mx-auto w-full">
           <TrainingForm
             form={form}
